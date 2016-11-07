@@ -3,7 +3,7 @@
 use yii\db\Schema;
 use yii\db\Migration;
 
-class m_create_storage_files extends Migration
+class storagefiles extends Migration
 {
     public function up()
     {

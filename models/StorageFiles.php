@@ -135,5 +135,17 @@ class StorageFiles extends ActiveRecord
             $file->removeFile();
         }
     }        
+
+    /**
+    *  Сохраняет файл  
+    */      
+    static function addFile($model,$file) 
+    {
+        
+        
+        
+    }        
+
+
     
 }

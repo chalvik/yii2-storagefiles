@@ -2,15 +2,12 @@
 
 namespace chalvik\storagefiles;
 
-use yii\base\Action;
 use yii\base\Component;
-use common\models\StorageFiles as ModelStorageFiles;
+use chalvik\storagefiles\models\StorageFiles as ModelStorageFiles;
 use yii\web\UploadedFile;
 use Yii;
-use yii\web\ServerErrorHttpException;
-use yii\imagine\Image;
-use Imagine\Image\Point;
-use Imagine\Image\Box;
+use chalvik\storagefiles\exeptions\StorageFilesExeption;
+
 
 class StorageFiles extends Component
 {
@@ -29,11 +26,12 @@ class StorageFiles extends Component
     /**
      * @var string   имя картинки по умолчанию
      */       
-    public $no_image;
+    public $no_image = 'default.jpg';
+    
     
     /**
      * @var array   настройки создания поддерикторий
-     * enable_id -  is true    создавать поддерикторию с ай ди русурса
+     * enable_id -  is true    создавать поддерикторию с ай ди ресурса
      * enable_model -  is true  создавать поддерикторию с названием сущности
      */           
     public $subdir =[
@@ -43,187 +41,80 @@ class StorageFiles extends Component
     
     /**
      * Загружает файлы  для $model 
-     * переданные через форму ( ActiveRecord  StorageFiles )
      * @param object $model
+     * @param string $ptag
+     * @param string $fild 
      * @return boolean
      */    
-    public function upload($model,$model_name=null,$field = 'files'){
+    public function upload($model,$ptag = null, $field = 'files') {
 
         if (isset($model->id)) {
-
             if (Yii::$app->request->isPost) {
-
                 $files = UploadedFile::getInstances($model, $field);
                 if ($files) {
-                    foreach ($files as $file) {
-                        
-                        if (!$model_name) {
-                            $model_name = $this->getModelName($model);
-                        }
-                        $fullPath = 'none';
-                        
-                        $main = ModelStorageFiles::find()
-                                ->where([
-                                    'model'     => $model_name,
-                                    'parent_id' => $model->id,
-                                    'main'      => true,
-                                ])->count();
-//                        
-
-                        $sf = new ModelStorageFiles();
-                        $sf->model          = $model_name;
-                        $sf->parent_id      = $model->id;
-                        $sf->path           = $fullPath;
-                        $sf->type           = $file->type;
-                        $sf->size           = $file->size;
-                        $sf->origin_name    = $file->baseName;
-                        $sf->main           = (int)(!$main > 0);
-                        if (Yii::$app->request->getIsConsoleRequest() === false) {
-                             $sf->upload_ip = Yii::$app->request->getUserIP();
-                        }
-
-                        $sf->save();
-
-                        $fullPath = $this->saveFile($file,$sf);
-                            
-                        if ($fullPath) {
-                            $sf->updateAttributes(['path'=>$fullPath]);
-                        }
-                        else {
-                            $sf->delete();
-                        }
-                    }
-                }
-            }            
-
-        }
-    }
-    
-    
-    /**
-     * Загружает файлы  по имени 
-     * переданные через форму ( ActiveRecord  StorageFiles )
-     * @param object $model
-     * @return boolean
-     */    
-    public function uploadByName($model,$name){
-
-        if (isset($model->id)) {
-
-            if (Yii::$app->request->isPost) {
-
-                $files = UploadedFile::getInstancesByName($name);
-                if ($files) {
-
-                    $this->deleteAll($model);
                     
-                    foreach ($files as $file) {
-                        
-                        $model_name = $this->getModelName($model);
-                        $fullPath = 'none';
-                        
-                        $main = ModelStorageFiles::find()
-                                ->where([
-                                    'model'     => $model_name,
-                                    'parent_id' => $model->id,
-                                    'main'      => true,
-                                ])->count();
-//                        
+                    $model_name = $this->getModelName($model);
+                    
+                    $path_files =[];
+                    
+                    foreach ($files as $key=>$file) {
 
-                        $sf = new ModelStorageFiles();
-                        $sf->model          = $model_name;
-                        $sf->parent_id      = $model->id;
-                        $sf->path           = $fullPath;
-                        $sf->type           = $file->type;
-                        $sf->size           = $file->size;
-                        $sf->origin_name    = $file->baseName;
-                        $sf->main           = (int)(!$main > 0);
-                        if (Yii::$app->request->getIsConsoleRequest() === false) {
-                             $sf->upload_ip = Yii::$app->request->getUserIP();
-                        }
-
-                        $sf->save();
-
-                        $fullPath = $this->saveFile($file,$sf);
+                        $transaction = Yii::$app->db->beginTransaction();
+                        try {        
+        
+                            $name = time().".". $file->extension;
+                            $path = $this->saveFile($file, $modelname,$name);
                             
-                        if ($fullPath) {
-                            $sf->updateAttributes(['path'=>$fullPath]);
-                        }
-                        else {
-                            $sf->delete();
-                        }
+                            if ($path) {
+                                
+                                $path_files[$key] = $path;                                  
+                                
+                            } else {
+                                
+                                throw StorageFilesExeption();                                
+                                
+                            }
+                            
+                            
+                            $sf = new StorageFiles();
+                            
+                            $sf->pname          = $model_name;
+                            $sf->pid            = $model->id;
+                            $sf->ptap           = $ptag;
+                            $sf->type           = $file->type;
+                            $sf->size           = $file->size;
+                            $sf->path           = $path_files[$key];
+                            $sf->name           = $name;
+                            $sf->origin_name    = $file->baseName;
+                            if (Yii::$app->request->getIsConsoleRequest() === false) {
+                                 $sf->ip = Yii::$app->request->getUserIP();
+                            }
+                            
+                            if (! $sf->save()) {
+                                
+                                throw StorageFilesExeption();
+                                
+                            }
+                            
+                            $transaction->commit();
+                            
+                        } catch (Exception $e) {                        
+                            
+                            foreach ($path_files as $file_path) {
+                                
+                                unlink($file_path);                                
+                                
+                            }
+                            
+                            $transaction->rollback();
+                            return false;
+                        }         
                     }
                 }
             }            
 
         }
     }
-    
-    
-
-    /**
-     * Загружает файлы  для $model 
-     * переданные через форму ( ActiveRecord  StorageFiles )
-     * @param object $model
-     * @param object $options ['dataX'=>'','dataX'=>'','dataWidth'=>'','dataHeight'=>'',]
-     * @param object $model
-     * @return boolean
-     */    
-    public function UploadAndCrop($model, \frontend\models\Cropper $model_crop,$field = 'file'){
-
-        if (isset($model->id) && $model_crop->validate()) {
-            
-            if (Yii::$app->request->isPost) {
-
-                $file = UploadedFile::getInstances($model_crop, $field);
-                
-                if (isset($file[0])) {
-                    $file= $file[0];
-                        $modelname = $this->getModelName($model);  
-
-                        $fullPath = 'none';
-                        
-                        $main = ModelStorageFiles::find()
-                                ->where([
-                                    'model'     => $modelname, 
-                                    'parent_id' => $model->id,
-                                    'main'      => true,
-                                ])->count();
-
-                        $sf = new ModelStorageFiles();
-                        $sf->model          = $modelname; 
-                        $sf->parent_id      = $model->id;
-                        $sf->path           = $fullPath;
-                        $sf->type           = $file->type;
-                        $sf->size           = $file->size;
-                        $sf->origin_name    = $file->baseName;
-                        $sf->main           = (int)(!$main > 0);
-                        
-                        if (Yii::$app->request->getIsConsoleRequest() === false) {
-                             $sf->upload_ip = Yii::$app->request->getUserIP();
-                        }
-                        
-                        $sf->save();
-                        
-//                        $fullPath = $this->saveFile($file,$sf);
-                         $fullPath =     $this->saveCropFile($file,$sf,$model_crop);
-                                
-                        if ($fullPath) {
-                            $sf->updateAttributes(['path'=>$fullPath]);                        
-                        } 
-                        else {
-                            $sf->delete();
-                            throw new ServerErrorHttpException(' Файл не был загружен ');
-                        }
-
-                }
-            }            
-
-        }        
-    }
-    
-    
-    
     
     
     /**
@@ -258,7 +149,7 @@ class StorageFiles extends Component
         $modelname = $this->getModelName($model);  
         
         if (($msfiles = ModelStorageFiles::find()->where([
-                    'model' =>  $modelname,
+                'model' =>  $modelname,
                 'parent_id' =>  $model->id,
             ])->all()) !== null) {
             
@@ -277,9 +168,7 @@ class StorageFiles extends Component
      * @param object file 
      * @return string
      */    
-    private function saveFile($file,$model){
-        
-        $modelname = strtolower($model->model);
+    private function saveFile($file,$modelname,$file_name){
         
         $Path = Yii::getAlias($this->path)."/".$modelname;
             
@@ -291,41 +180,10 @@ class StorageFiles extends Component
         if (! $file->saveAs($fullPath)) {
             $fullPath =null;
         }
-        return $this->path."/".$modelname.'/'. $model->slug .".". $file->extension;;
+        return $this->path."/".$modelname.'/'. $file_name;
     }    
 
-    /**
-     * Сохраняет обрезанную копию загруженного файла, правила в модели $model_crop
-     * не удачно null 
-     * @param object file 
-     * @return string
-     */    
-    private function saveCropFile($file,$model,$model_crop){
-        
-        $modelname = strtolower($model->model);
-        
-        $Path = Yii::getAlias($this->path)."/".$modelname;
-            
-        if(!file_exists($Path)) {
-            mkdir($Path,0755,TRUE);
-        }
-            
-        $fullPath = $Path.'/'. $model->slug .".". $file->extension;
-        
-        if (is_uploaded_file($file->tempName)) {
-            
-            $cropimage  =  Image::getImagine()->open($file->tempName);
-            $point      =  new Point($model_crop['dataX'], $model_crop['dataY']);
-            $box        =  new Box($model_crop['dataWidth'], $model_crop['dataHeight']);
-            $cropimage  = $cropimage->crop($point, $box);
-            $cropimage = $cropimage->save($fullPath,['quality' => 90]);
-            
-        }          
-                
-        return $fullPath;
-    }    
-
-    
+   
     /**
      * Удаляет файлы 
      * @param $files (array) or (string) имя файла с абсолютным путем или массив имен
@@ -347,12 +205,15 @@ class StorageFiles extends Component
         }
     }    
     
+    
+    
+    
     /**
      * Возвращает имя модели к которой  принадлежит объект
      * @param object $model 
      * @return string
      */    
-    public function getModelName($model){
+    private  function getModelName($model){
 
         $modelname = get_class($model);
         $m = explode('\\', $modelname);
@@ -360,25 +221,6 @@ class StorageFiles extends Component
         
         return $modelname;
     }    
-
-    
-//    /**
-//     * Возвращает url к файлу  
-//     * @param object ModelStorageFiles $file 
-//     * @return string
-//     */     
-//    public function getUrl($file,$width,$height){
-//        
-//        if ($file) {
-//            $output =  $this->base_url.$file->Thumb($width,$height);
-//        }
-//        else {
-//            $file =  new ModelStorageFiles();
-//            $file->path ="/nonefile";
-//            $output = $this->base_url.$file->Thumb($width,$height);
-//        }
-//        return $output;
-//    }
         
     
 }
