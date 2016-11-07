@@ -1,0 +1,26 @@
+{
+    "name": "yii2-storagefiles",
+    "description": "Uploader and Storage files",
+    "type": "yii2-extension",
+    "keywords": ["yii2", "yii 2", "files"],
+    "license": "BSD-3-Clause",
+    "authors": [
+        {
+            "name": "Alexey Chernogor",
+            "email": "chalvik27@mail.ru"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/chalvik/yii2-storagefiles/issues?state=open",
+        "source": "https://github.com/chalvik/yii2-storagefiles"
+    },
+    "require": {
+        "yiisoft/yii2": "~2.0",
+        "yiisoft/yii2-imagine": "~2.0"                
+    },
+    "autoload": {
+        "psr-4": {
+            "chalvik\\storagefiles\\": ""
+        }
+    }
+}
