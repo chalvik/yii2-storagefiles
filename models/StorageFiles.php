@@ -9,9 +9,6 @@ use yii\imagine\Image;
 use Imagine\Image\Point;
 use Imagine\Image\Box;
 
-
-
-
 /**
  * This is the model class for table "storage_files".
  *
@@ -33,6 +30,11 @@ class StorageFiles extends ActiveRecord
 {
     
     /**
+     * @var yii\web\UploadedFile  Object file for upload and save 
+     */
+    private  $file;
+    
+    /**
      * @inheritdoc
      */
     public static function tableName()
@@ -50,12 +52,6 @@ class StorageFiles extends ActiveRecord
                     ActiveRecord::EVENT_BEFORE_INSERT => ['created_at'],
                 ),
             ],     
-//            'slug' => [
-//                'class' => 'common\behaviors\Slug',
-//                'in_attribute' => 'origin_name',
-//                'out_attribute' => 'slug',
-//                'translit' => true
-//            ],            
         );
     }    
     
@@ -97,24 +93,60 @@ class StorageFiles extends ActiveRecord
     }
     
 
+
+    
+    
+    /**
+    *  Сохраняет файл  
+    */      
+    static function saveFile($model,$file) 
+    {
+        
+        
+        
+    }        
+
+    
+    /**
+     * Удаляет файлы 
+     * @param $files (array) or (string) имя файла с абсолютным путем или массив имен
+     * @return mixed
+     */    
+    private function deleteFiles($files){
+//        if (is_array($files)) {
+//            foreach ($files as $file) {
+//                if (file_exists($file) ) {
+//                    unlink($file);
+//                }
+//            }
+//        }
+//        else {
+//            
+//            if (file_exists($files) ) {
+//                unlink($files);
+//            }
+//        }
+    }    
+    
+    
     /**
     *  Удаляет файлы с диска 
     * 
     */      
     public function removeFile() 
     {
-        $path  = Yii::$app->storagefiles->path;
-        
-        if ($this->model) {
-            $modelname = strtolower($this->model);  
-        }         
-        $thumbsPath = Yii::getAlias($path)."/thumbs/".$modelname;
-        array_map("unlink", glob($thumbsPath."/*".$this->slug.".*"));
-        
-        if (file_exists($this->path)) {
-            unlink($this->path);
-        }    
-        $this->delete();
+//        $path  = Yii::$app->storagefiles->path;
+//        
+//        if ($this->model) {
+//            $modelname = strtolower($this->model);  
+//        }         
+//        $thumbsPath = Yii::getAlias($path)."/thumbs/".$modelname;
+//        array_map("unlink", glob($thumbsPath."/*".$this->slug.".*"));
+//        
+//        if (file_exists($this->path)) {
+//            unlink($this->path);
+//        }    
+//        $this->delete();
         
     }    
     
@@ -125,27 +157,16 @@ class StorageFiles extends ActiveRecord
     */      
     static function removeFiles($model, $parent_id) 
     {
-        $storagefiles = \common\models\StorageFiles::find()
-                ->where([
-                  'model'      => $model,  
-                  'parent_id'  => $parent_id,  
-                ])
-                ->all();
-        foreach ($storagefiles as $file) {
-            $file->removeFile();
-        }
+//        $storagefiles = \common\models\StorageFiles::find()
+//                ->where([
+//                  'model'      => $model,  
+//                  'parent_id'  => $parent_id,  
+//                ])
+//                ->all();
+//        foreach ($storagefiles as $file) {
+//            $file->removeFile();
+//        }
     }        
-
-    /**
-    *  Сохраняет файл  
-    */      
-    static function addFile($model,$file) 
-    {
-        
-        
-        
-    }        
-
 
     
 }
