@@ -44,7 +44,7 @@ class StorageFiles extends Component
      * @param string $fild 
      * @return boolean
      */    
-    public function upload($model,$ptag = null, $field = 'files') 
+    public function upload($model,$field = 'files') 
     {
 
         if (isset($model->id)) {
@@ -66,27 +66,10 @@ class StorageFiles extends Component
                         
                         $transaction = Yii::$app->db->beginTransaction();
                         try {        
-        
-                            $name = time().".". $file->extension;
-                            $path = $this->saveFile($file, $modelname,$name);
-                            
-                            if ($path) {
-                                $path_files[$key] = $path;                                  
-                            } else {
-                                throw StorageFilesExeption();                                
-                            }
-                            
                             
                             $sf = new ModelStorageFiles();                            
-                            $sf->pname          = $modelname;
-                            $sf->pid            = $model->id;
-                            $sf->ptag           = $ptag;
-                            $sf->type           = $file->type;
-                            $sf->size           = $file->size;
-                            $sf->path           = $path_files[$key];
-                            $sf->name           = $name;
-                            $sf->origin_name    = $file->baseName;
-                            
+                            $sf->setFile($file);
+                            $sf->setParent($model);
                             if (Yii::$app->request->getIsConsoleRequest() === false) {
                                  $sf->ip = Yii::$app->request->getUserIP();
                             }
@@ -217,20 +200,6 @@ class StorageFiles extends Component
     }    
 
     
-   
-    /**
-     * Возвращает имя модели к которой  принадлежит объект
-     * @param object $model 
-     * @return string
-     */    
-    private  function getModelName($model){
-
-        $modelname = get_class($model);
-        $m = explode('\\', $modelname);
-        $modelname = end($m);     
-        
-        return $modelname;
-    }    
         
     
 }

@@ -8,7 +8,7 @@ use yii\db\Expression;
 use yii\imagine\Image;
 use Imagine\Image\Point;
 use Imagine\Image\Box;
-
+use yii\web\UploadedFile;
 /**
  * This is the model class for table "storage_files".
  *
@@ -33,6 +33,11 @@ class StorageFiles extends ActiveRecord
      * @var yii\web\UploadedFile  Object file for upload and save 
      */
     private  $file;
+    
+    /**
+     * @var ActiveRecord  Object for which the upload  file
+     */
+    private  $model;
     
     /**
      * @inheritdoc
@@ -64,14 +69,46 @@ class StorageFiles extends ActiveRecord
         
         return [
             
-            [['pname','pid', 'path', 'type', 'size', 'ip','origin_name'], 'required'],
-            [['pid', 'size', 'order'], 'integer'],
-            [['created_at'], 'safe'],
-            [['pname','name', 'path', 'type', 'ip'], 'string', 'max' => 255],
+            [['path', 'type', 'size', 'ip','origin_name'], 'required'],
+            [['size'], 'integer'],
+            [['name', 'path', 'type', 'ip'], 'string', 'max' => 255],
+            [['file'], 'validateFile'],
             
         ];
     }
 
+    
+    /**
+     *  Set Uploadfile object 
+     *  
+     * @var $file UploadFiles  
+     */
+    public function setFile(UploadedFile $file)
+    {
+        $this->file = $file; 
+    }
+    
+
+    
+    /**
+     * Validate  object Uploadfile
+     * 
+     */    
+    public function validateFile()
+    {
+        if (!$this->file) {
+            $this->addError('file', 'Empty object Uploadfiles');
+        } elseif ($this->file->error) {
+            $this->addError('file', 'field error is true  from object Uploadfiles');
+        } elseif ($this->file->name) {
+            $this->addError('file', 'Empty field name from object Uploadfiles');
+        } elseif ($this->file->tempName) {
+            $this->addError('file', 'Empty field tempName from object Uploadfiles');
+        }
+        
+    }    
+    
+    
     /**
      * @inheritdoc
      */
@@ -79,27 +116,113 @@ class StorageFiles extends ActiveRecord
     {
         return [
             'id'            => "ID",
-            'pname'         => "Parent name Model",
-            'pid'           => "id  parent Model",
+            'file'          => "Object Uploadfiles",
             'path'          => "Path to file",
             'type'          => "Type file",
             'size'          => "Size file",
             'name'          => "Translate name file",
             'origin_name'   => "Origin name file",
-            'order'         => "Order by",
             'ip'            => "ip uploader",
             'created_at'    => "Create date",
         ];
     }
     
 
+    /**
+     *  Before Save
+     * 
+     * @inheritdoc
+     */
+    public  function beforeSave($insert) {
+        
+        if (parent::beforeSave($insert)) {
+            
+            $name = time().".". $this->file->extension;
+            $this->type         = $this->file->type;
+            $this->size         = $this->file->size;
+            $this->path         = $path_files[$key];
+            $this->name         = $name;
+            $this->origin_name  = $this->file->baseName;        
 
-    
-    
+            // сохранить файл 
+            // заполнить 
+            
+            $event = new ModelEvent;
+            
+        return $event->isValid;
+        }
+
+        
+        
+    }
+        
+        
+    /**
+     * Возвращает имя модели к которой  принадлежит объект
+     * @param object $model 
+     * @return string
+     */    
+    private  function getModelName($model){
+
+        $modelname = get_class($model);
+        $m = explode('\\', $modelname);
+        $modelname = end($m);     
+        
+        return $modelname;
+    }          
+        
+        
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//
+//                            $name = time().".". $file->extension;
+//                            $path = $this->saveFile($file, $modelname,$name);
+//                            
+//                            if ($path) {
+//                                $path_files[$key] = $path;                                  
+//                            } else {
+//                                throw StorageFilesExeption();                                
+//                            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     /**
     *  Сохраняет файл  
     */      
-    static function saveFile($model,$file) 
+    private function saveFile($model,$file) 
     {
         
         
