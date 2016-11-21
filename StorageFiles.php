@@ -6,6 +6,7 @@ use yii\base\Component;
 use chalvik\storagefiles\models\StorageFiles as ModelStorageFiles;
 use yii\web\UploadedFile;
 use Yii;
+use chalvik\storagefiles\exeptions\StorageFilesExeption;
 
 class StorageFiles extends Component
 {
@@ -24,7 +25,7 @@ class StorageFiles extends Component
     /**
      * @var string   имя картинки по умолчанию
      */       
-    public $no_image = 'default.jpg';
+    public $no_image = '@app/vendor/chalvik/storagefiles/images/no_picture.jpg';
     
     
     /**
@@ -32,8 +33,9 @@ class StorageFiles extends Component
      * enable_id -  is true    создавать поддерикторию с ай ди ресурса
      * enable_model -  is true  создавать поддерикторию с названием сущности
      */           
-    public $subdir =[
+    public $path_setting =[
         'enable_id'=>false,
+        'enable_model'=>true,
     ];
     
     
@@ -42,9 +44,9 @@ class StorageFiles extends Component
      * @param object $model
      * @param string $ptag
      * @param string $fild 
-     * @return boolean
+     * @return integer   
      */    
-    public function upload($model,$field = 'files') 
+    public function upload($model,$field = 'files',$crop=null) 
     {
 
         if (isset($model->id)) {
@@ -56,35 +58,29 @@ class StorageFiles extends Component
                     
                     foreach ($files as $key=>$file) {
                         
-                        
-                        echo "<pre>";
-                        print_r($model);
-                        print_r(get_class($model));
-                        print_r($file);
-                        echo "</pre>";
-                        die();
-                        
                         $transaction = Yii::$app->db->beginTransaction();
                         try {        
                             
+                            $path_to_save = $this->getPath($model);
                             $sf = new ModelStorageFiles();                            
                             $sf->setFile($file);
-                            $sf->setParent($model);
+                            $sf->setBasePath($path_to_save);
+                            $sf->parent_name = $this->getModelName($model);
+                            $sf->parent_id = $model->id;
+                            
                             if (Yii::$app->request->getIsConsoleRequest() === false) {
                                  $sf->ip = Yii::$app->request->getUserIP();
                             }
                             
                             if (! $sf->save()) {
-                                throw StorageFilesExeption();
+                                
+                                throw new \yii\base\Exception();
                             }
                             
                             $transaction->commit();
-                        } catch (Exception $e) {                        
+                            return $sf->id; 
                             
-                            // удаляем файлы если загрузка произошла неуспешно
-                            foreach ($path_files as $file_path) {
-                                unlink($file_path);                                
-                            }
+                        } catch (Exception $e) {                        
                             
                             $transaction->rollback();
                             return false;
@@ -95,6 +91,40 @@ class StorageFiles extends Component
 
         }
     }
+
+
+    /**
+     * Возвращает имя модели к которой  принадлежит объект
+     * @param ActiveRecord $model
+     * @return string
+     */    
+    private  function getModelName($model){
+
+        $modelname = get_class($model);
+        $m = explode('\\', $modelname);
+        $modelname = end($m);     
+        
+        return mb_strtolower($modelname);
+    } 
+    
+    
+    /**
+     * Возвращает путь для записи картинок 
+     * @param ActiveRecord $model
+     * @return mixed
+     */    
+    private  function getPath($model){
+        
+        $path = $this->path.'/'.$this->getModelName($model).'/';
+        // формирование пути по правилу $path_setting ****************************************************************************
+        
+        
+        
+        return $path;                
+        
+    }
+    
+    
     
     
     /**
@@ -103,14 +133,13 @@ class StorageFiles extends Component
      * @return mixed
      */    
     public function delete($id){
+        
         $output = null;
         if (($model = ModelStorageFiles::findOne($id)) !== null) {            
-            
             $output = $model->delete($id);            
-            
         }
-         
         return $output;                
+        
     }
     
     
@@ -134,72 +163,26 @@ class StorageFiles extends Component
                 
             if($msfiles) {
             
-            $transaction = Yii::$app->db->beginTransaction();
-            try {        
-                foreach ($msfiles as $msfile) { 
-                    $this->delete($msfile->id);
-                    $msfile->delete();
-                }
-            } catch (Exception $e) {                        
+                $transaction = Yii::$app->db->beginTransaction();
+                try {        
+                    foreach ($msfiles as $msfile) { 
+                        $this->delete($msfile->id);
+                        $msfile->delete();
+                    }
+                } catch (Exception $e) {                        
 
-                // удаляем файлы если загрузка произошла неуспешно
-                foreach ($path_files as $file_path) {
-                    unlink($file_path);                                
-                }
+                    // удаляем файлы если загрузка произошла неуспешно
+                    foreach ($path_files as $file_path) {
+                        unlink($file_path);                                
+                    }
 
-                $transaction->rollback();
-                return false;
-            }         
+                    $transaction->rollback();
+                    return false;
+                }         
         
-    }
+            }
         return true;                
     }    
 
-    /**
-     * Удаляет файлы 
-     * @param $files (array) or (string) имя файла с абсолютным путем или массив имен
-     * @return mixed
-     */    
-    private function deleteFiles($files){
-        if (is_array($files)) {
-            foreach ($files as $file) {
-                if (file_exists($file) ) {
-                    unlink($file);
-                }
-            }
-        }
-        else {
-            
-            if (file_exists($files) ) {
-                unlink($files);
-            }
-        }
-    }    
-    
-    
-    /**
-     * Сохраняет файл , возвращает полный путь к файлу, если удачно 
-     * не удачно null 
-     * @param object file 
-     * @return string
-     */    
-    private function saveFile($file,$modelname,$file_name){
-        
-        $Path = Yii::getAlias($this->path)."/".$modelname;
-            
-        if(!file_exists($Path)) {
-            mkdir($Path,0755,TRUE);
-        }
-            
-        $fullPath = $Path.'/'. $file_name .".". $file->extension;
-        
-        if (! $file->saveAs($fullPath)) {
-            $fullPath =null;
-        }
-        return $this->path."/".$modelname.'/'. $file_name;
-    }    
-
-    
-        
     
 }

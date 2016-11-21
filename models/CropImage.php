@@ -3,12 +3,10 @@
 namespace chalvik\storagefiles\models;
 
 use Yii;
-use yii\db\ActiveRecord;
-use yii\db\Expression;
 use yii\imagine\Image;
 use Imagine\Image\Point;
 use Imagine\Image\Box;
-
+use chalvik\storagefiles\exeptions\StorageFilesExeption; 
 
 
 
@@ -16,25 +14,55 @@ use Imagine\Image\Box;
  * This is the model class for table "storage_files".
  * 
  */
-class CropImage extends Model
+class CropImage
 {
+    /**
+     * Объект сохраненного файла
+     * @var StorageFiles 
+     */
+    
+    private $storagefiles;
+    
+    private $path;
     
     /**
-     * @inheritdoc
+     * Название  директории в которую будет нарезатся данная картинка
+     * @var string 
      */
-    public function rules()
-    {
+//    private $alias;
+
+    
+    
+    function __construct(StorageFiles $storagefiles) {
         
-        return [
-            
-            [['pname','pid', 'path', 'type', 'size', 'ip','origin_name'], 'required'],
-            [['pid', 'size', 'order'], 'integer'],
-            [['created_at'], 'safe'],
-            [['pname','name', 'path', 'type', 'ip'], 'string', 'max' => 255],
-            
-        ];
+        $this->storagefiles = $storagefiles; 
+        
+    }
+    
+    /**
+     *  Устанавливает путь для хранения нарезанных картинок
+     * @param type $path
+     */
+    function setPath($path) {
+        
+        $this->storagefiles = $storagefiles; 
+        
     }
 
+    /**
+     *  Возвращает путь, где хранятся нарезанные картиноки
+     * @param type $path
+     */    
+    function getPath() {
+        $path = '/thumb/'; 
+        if ($this->storagefiles) {
+            $path = $this->storagefiles;
+        }
+        
+        $this->storagefiles = $storagefiles; 
+        
+    }
+    
     
     /**
     * Возвращает путь к thumb картинки

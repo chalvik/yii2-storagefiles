@@ -13,9 +13,9 @@ class m110209_132017_init extends Migration
         }
         $this->createTable('{{%storagefiles}}', [
             
-            'id'         => $this->primaryKey(),
-//            'pname'      => $this->string(30)->notNull()->comment("name model"),
-//            'pid'        => $this->integer()->notNull()->comment("pid model"), 
+            'id'            => $this->primaryKey(),
+            'parent_name'   => $this->string(30)->notNull()->comment("name model"),
+            'parent_id'     => $this->integer()->notNull()->comment("pid model"), 
 //            'ptag'       => $this->string(30)->defaultValue(null)->comment("tag model"),  
             'path'       => $this->string()->notNull()->comment("path to file "),   
             'type'       => $this->string(20)->notNull()->comment("type file"), 

@@ -2,13 +2,12 @@
 
 namespace chalvik\storagefiles\models;
 
-use Yii;
 use yii\db\ActiveRecord;
 use yii\db\Expression;
-use yii\imagine\Image;
-use Imagine\Image\Point;
-use Imagine\Image\Box;
 use yii\web\UploadedFile;
+use chalvik\storagefiles\exeptions\StorageFilesExeption;
+use Yii;
+//use yii\web\UploadedFile;
 /**
  * This is the model class for table "storage_files".
  *
@@ -32,12 +31,14 @@ class StorageFiles extends ActiveRecord
     /**
      * @var yii\web\UploadedFile  Object file for upload and save 
      */
-    private  $file;
+    public  $file;
     
+
     /**
-     * @var ActiveRecord  Object for which the upload  file
+     * @var string Базовый путь для сохранения файлов 
      */
-    private  $model;
+    public  $base_path;
+
     
     /**
      * @inheritdoc
@@ -69,10 +70,10 @@ class StorageFiles extends ActiveRecord
         
         return [
             
-            [['path', 'type', 'size', 'ip','origin_name'], 'required'],
-            [['size'], 'integer'],
-            [['name', 'path', 'type', 'ip'], 'string', 'max' => 255],
+            [['parent_name','parent_id','base_path'], 'required'],
+            [['ip'], 'string', 'max' => 255],
             [['file'], 'validateFile'],
+            [['parent_model','path','type','size','name','origin_name','created_at'], 'safe']
             
         ];
     }
@@ -88,7 +89,15 @@ class StorageFiles extends ActiveRecord
         $this->file = $file; 
     }
     
-
+    /**
+     *  Set Uploadfile object 
+     *  
+     * @var $file UploadFiles  
+     */
+    public function setBasePath($base_path)
+    {
+        $this->base_path = $base_path; 
+    }
     
     /**
      * Validate  object Uploadfile
@@ -96,17 +105,30 @@ class StorageFiles extends ActiveRecord
      */    
     public function validateFile()
     {
-        if (!$this->file) {
-            $this->addError('file', 'Empty object Uploadfiles');
-        } elseif ($this->file->error) {
-            $this->addError('file', 'field error is true  from object Uploadfiles');
-        } elseif ($this->file->name) {
-            $this->addError('file', 'Empty field name from object Uploadfiles');
-        } elseif ($this->file->tempName) {
-            $this->addError('file', 'Empty field tempName from object Uploadfiles');
-        }
+//        if (!$this->file) {
+//            $this->addError('file', 'Empty object Uploadfiles');
+//        } elseif ($this->file->error) {
+//            $this->addError('file', 'field error is true  from object Uploadfiles');
+//        } elseif ($this->file->name) {
+//            $this->addError('file', 'Empty field name from object Uploadfiles');
+//        } elseif ($this->file->tempName) {
+//            $this->addError('file', 'Empty field tempName from object Uploadfiles');
+//        }
         
     }    
+
+    /**
+     * Validate  object Uploadfile
+     * 
+     */    
+    public function validateParentModel()
+    {
+        if (!$this->parent_model) {
+            $this->addError('parent_model', 'Empty object Parent Model');
+        } 
+        
+    }    
+
     
     
     /**
@@ -116,7 +138,8 @@ class StorageFiles extends ActiveRecord
     {
         return [
             'id'            => "ID",
-            'file'          => "Object Uploadfiles",
+            'parent_name'   => "Parent Name",
+            'parent_id'     => "Parent Id",
             'path'          => "Path to file",
             'type'          => "Type file",
             'size'          => "Size file",
@@ -124,6 +147,7 @@ class StorageFiles extends ActiveRecord
             'origin_name'   => "Origin name file",
             'ip'            => "ip uploader",
             'created_at'    => "Create date",
+            'file'          => "Object Uploadfiles",
         ];
     }
     
@@ -135,161 +159,88 @@ class StorageFiles extends ActiveRecord
      */
     public  function beforeSave($insert) {
         
-        if (parent::beforeSave($insert)) {
-            
-            $name = time().".". $this->file->extension;
-            $this->type         = $this->file->type;
-            $this->size         = $this->file->size;
-            $this->path         = $path_files[$key];
-            $this->name         = $name;
-            $this->origin_name  = $this->file->baseName;        
+        $this->type             = $this->file->type;
+        $this->size             = $this->file->size;
+        $this->name             = time();
+        $this->origin_name      = $this->file->baseName;        
 
-            // сохранить файл 
-            // заполнить 
-            
-            $event = new ModelEvent;
-            
-        return $event->isValid;
+        
+        // сохранить файл 
+        $path = $this->saveFile($this->name);
+        
+        
+        if ($path) {
+            $this->path = $path;
+        } else {
+            $this->addError('file',"Fail save file ");
+            return false;
         }
 
-        
+        return parent::beforeSave($insert);
         
     }
-        
-        
+
     /**
-     * Возвращает имя модели к которой  принадлежит объект
-     * @param object $model 
-     * @return string
-     */    
-    private  function getModelName($model){
+     *  Before Delete
+     * 
+     * @inheritdoc
+     */
+    public  function beforeDelete() {
+        if (parent::beforeDelete()) {
+            
+            return $this->removeFile();
+            
+        }            
+    }
 
-        $modelname = get_class($model);
-        $m = explode('\\', $modelname);
-        $modelname = end($m);     
-        
-        return $modelname;
-    }          
-        
-        
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//
-//                            $name = time().".". $file->extension;
-//                            $path = $this->saveFile($file, $modelname,$name);
-//                            
-//                            if ($path) {
-//                                $path_files[$key] = $path;                                  
-//                            } else {
-//                                throw StorageFilesExeption();                                
-//                            }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
     /**
     *  Сохраняет файл  
     */      
-    private function saveFile($model,$file) 
+    private function saveFile($name) 
     {
         
+        $base_path = Yii::getAlias($this->base_path);
         
+        $result = false;
+        
+        if(!file_exists($base_path)) {
+            if (! mkdir($base_path,0755,TRUE) ) {
+                return false;
+            }
+        }
+        
+        $relative_path =  $name;
+        
+        $fullPath = $base_path.$relative_path;
+        
+        if ($this->file->saveAs($fullPath)) {
+            
+           $result = $this->base_path.$relative_path; 
+            
+        } 
+        
+        return $result;
         
     }        
+        
+        
 
     
     /**
-     * Удаляет файлы 
-     * @param $files (array) or (string) имя файла с абсолютным путем или массив имен
-     * @return mixed
-     */    
-    private function deleteFiles($files){
-//        if (is_array($files)) {
-//            foreach ($files as $file) {
-//                if (file_exists($file) ) {
-//                    unlink($file);
-//                }
-//            }
-//        }
-//        else {
-//            
-//            if (file_exists($files) ) {
-//                unlink($files);
-//            }
-//        }
-    }    
-    
-    
-    /**
     *  Удаляет файлы с диска 
-    * 
+    * @return boolean 
     */      
     public function removeFile() 
     {
-//        $path  = Yii::$app->storagefiles->path;
-//        
-//        if ($this->model) {
-//            $modelname = strtolower($this->model);  
-//        }         
-//        $thumbsPath = Yii::getAlias($path)."/thumbs/".$modelname;
-//        array_map("unlink", glob($thumbsPath."/*".$this->slug.".*"));
-//        
-//        if (file_exists($this->path)) {
-//            unlink($this->path);
-//        }    
-//        $this->delete();
+        $result = false; 
+        if (file_exists($this->path)) {
+            $result = unlink($this->path);
+        }            
         
+        return $result;
     }    
     
-    
-/**
-    *  Удаляет файлы с диска  привязанные к заданной записи 
-    * 
-    */      
-    static function removeFiles($model, $parent_id) 
-    {
-//        $storagefiles = \common\models\StorageFiles::find()
-//                ->where([
-//                  'model'      => $model,  
-//                  'parent_id'  => $parent_id,  
-//                ])
-//                ->all();
-//        foreach ($storagefiles as $file) {
-//            $file->removeFile();
-//        }
-    }        
 
     
 }
